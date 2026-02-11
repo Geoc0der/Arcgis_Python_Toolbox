@@ -1,0 +1,79 @@
+import arcpy
+
+class Toolbox(object):
+    def __init__(self):
+        """Define the toolbox (the name appearing in the Catalog)."""
+        self.label = "Spatial Processing Toolbox"
+        self.alias = "SpatialTools"
+        # List of tool classes associated with this toolbox
+        self.tools = [ClipAndEraseTool]
+
+class ClipAndEraseTool(object):
+    def __init__(self):
+        """Define the tool (the name appearing in the tool dialog)."""
+        self.label = "Clip and Erase"
+        self.description = "Extracts the intersection and removes it from the base layer."
+        self.canRunInBackground = False
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        # 1. Base Layer (The layer to be cut)
+        param0 = arcpy.Parameter(
+            displayName="Base Layer (Input)",
+            name="base_layer",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+
+        # 2. Overlay Layer (The cutter)
+        param1 = arcpy.Parameter(
+            displayName="Overlay Layer (Cutter)",
+            name="overlay_layer",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+
+        # 3. Output Clipped (The Intersect)
+        param2 = arcpy.Parameter(
+            displayName="Output: Intersecting Part (Clipped)",
+            name="clipped_output",
+            datatype="DEFeatureClass",
+            parameterType="Required",
+            direction="Output")
+
+        # 4. Output Erased (The Difference)
+        param3 = arcpy.Parameter(
+            displayName="Output: Remaining Part (Erased)",
+            name="erased_output",
+            datatype="DEFeatureClass",
+            parameterType="Required",
+            direction="Output")
+
+        return [param0, param1, param2, param3]
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        base_layer    = parameters[0].valueAsText
+        overlay_layer = parameters[1].valueAsText
+        clipped_out   = parameters[2].valueAsText
+        erased_out    = parameters[3].valueAsText
+
+        try:
+            # Step 1: Clip (Get the intersection)
+            messages.addMessage("Running Clip...")
+            arcpy.analysis.PairwiseClip(base_layer, overlay_layer, clipped_out)
+            
+            # Step 2: Erase (Get the remainder)
+            # PairwiseErase is faster and doesn't require an Advanced License in newer Pro versions
+            messages.addMessage("Running Erase...")
+            arcpy.analysis.PairwiseErase(base_layer, overlay_layer, erased_out)
+
+            messages.addMessage("Process complete.")
+            
+        except arcpy.ExecuteError:
+            messages.addErrorMessage(arcpy.GetMessages(2))
+        except Exception as ex:
+            messages.addErrorMessage(str(ex))
+
+        return
